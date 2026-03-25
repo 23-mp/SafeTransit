@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>SafeTransit – Smart Public Transport Safety</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy: #1A6B8A;
+    --navy2: #F0F7FA;
+    --teal: #0891B2;
+    --teal2: #0E7490;
+    --teal-light: #22D3EE;
+    --accent: #EF4444;
+    --gold: #D97706;
+    --white: #FFFFFF;
+    --silver: #64748B;
+    --gray: #94A3B8;
+    --card: #FFFFFF;
+    --card2: #F1F8FB;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:#CBD5E1; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:'DM Sans',sans-serif; }
+
+  /* PHONE SHELL */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--navy2);
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08), inset 0 0 0 2px rgba(255,255,255,0.6);
+  }
+  .notch {
+    position: absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:32px; background:#000; border-radius:0 0 20px 20px; z-index:100;
+  }
+  .status-bar {
+    position: absolute; top:0; left:0; right:0; height:44px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 8px 24px 0; z-index:99; pointer-events:none;
+  }
+  .status-bar span { font-size:12px; font-weight:600; color:rgba(0,0,0,0.5); }
+
+  /* SCREENS */
+  .screen { position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; opacity:0; pointer-events:none; transition:opacity 0.3s ease; padding-top:44px; }
+  .screen.active { opacity:1; pointer-events:all; }
+  .screen::-webkit-scrollbar { display:none; }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position:absolute; bottom:0; left:0; right:0; height:80px;
+    background: rgba(255,255,255,0.97); backdrop-filter:blur(20px);
+    border-top: 1px solid rgba(8,145,178,0.15);
+    display:flex; align-items:center; justify-content:space-around; padding:0 8px 16px;
+    z-index:50;
+  }
+  .nav-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:8px 16px; border-radius:16px; transition:all 0.2s; }
+  .nav-btn.active { background:rgba(0,168,150,0.15); }
+  .nav-btn svg { width:22px; height:22px; }
+  .nav-btn span { font-size:10px; font-weight:500; color:var(--gray); }
+  .nav-btn.active span { color:var(--teal); }
+
+  /* ── HOME SCREEN ── */
+  #home { background: linear-gradient(160deg, #E0F2FE 0%, #F0F9FF 60%, #F8FAFC 100%); }
+  .home-header { padding: 60px 24px 20px; }
+  .home-greeting { font-size:13px; color:var(--teal); font-weight:500; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .home-name { font-family:'Playfair Display',serif; font-size:28px; color:#0F172A; font-weight:700; }
+  .home-route-card {
+    margin: 8px 24px 0;
+    background: var(--white);
+    border-radius: 20px;
+    padding: 16px 20px;
+    border: 1px solid rgba(8,145,178,0.2);
+    display:flex; align-items:center; gap:12px;
+    box-shadow: 0 2px 12px rgba(8,145,178,0.1);
+  }
+  .route-dot { width:10px; height:10px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); flex-shrink:0; }
+  .route-info { flex:1; }
+  .route-label { font-size:11px; color:var(--gray); font-weight:500; }
+  .route-text { font-size:14px; color:#0F172A; font-weight:600; margin-top:2px; }
+  .route-badge { background:rgba(0,168,150,0.15); border:1px solid rgba(0,168,150,0.3); border-radius:20px; padding:4px 10px; font-size:11px; color:var(--teal); font-weight:600; }
+
+  /* SOS BUTTON */
+  .sos-container { display:flex; flex-direction:column; align-items:center; padding: 28px 24px 20px; }
+  .sos-ring3 { width:240px; height:240px; border-radius:50%; background:rgba(255,107,107,0.04); display:flex; align-items:center; justify-content:center; animation: pulse3 2.5s ease-in-out infinite; }
+  .sos-ring2 { width:200px; height:200px; border-radius:50%; background:rgba(255,107,107,0.07); display:flex; align-items:center; justify-content:center; animation: pulse3 2.5s ease-in-out infinite 0.3s; }
+  .sos-ring1 { width:164px; height:164px; border-radius:50%; background:rgba(255,107,107,0.12); display:flex; align-items:center; justify-content:center; animation: pulse3 2.5s ease-in-out infinite 0.6s; }
+  .sos-btn {
+    width:134px; height:134px; border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, #FF8E8E, #FF3B3B, #CC1111);
+    border: none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    box-shadow: 0 0 40px rgba(255,59,59,0.5), 0 8px 32px rgba(0,0,0,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .sos-btn:active { transform:scale(0.95); box-shadow: 0 0 20px rgba(255,59,59,0.3); }
+  .sos-btn .sos-label { font-family:'Playfair Display',serif; font-size:28px; font-weight:900; color:#fff; line-height:1; }
+  .sos-btn .sos-sub { font-size:9px; color:rgba(255,255,255,0.8); font-weight:500; letter-spacing:1.5px; text-transform:uppercase; }
+  @keyframes pulse3 { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.04);opacity:0.8} }
+  .sos-hint { font-size:12px; color:var(--gray); margin-top:12px; text-align:center; }
+
+  /* Quick actions */
+  .quick-actions { padding: 0 24px; display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:90px; }
+  .qa-card { background:var(--white); border-radius:16px; padding:16px; border:1px solid rgba(8,145,178,0.12); cursor:pointer; transition:all 0.2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  .qa-card:active { transform:scale(0.97); background:var(--card2); }
+  .qa-icon { font-size:22px; margin-bottom:8px; }
+  .qa-title { font-size:13px; font-weight:600; color:#0F172A; }
+  .qa-sub { font-size:11px; color:var(--gray); margin-top:2px; }
+
+  /* ── SOS SCREEN ── */
+  #sos-screen { background: linear-gradient(160deg, #FEF2F2 0%, #FFF5F5 50%, #FFFBFB 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:44px 24px 100px; }
+  .sos-activated { font-family:'Playfair Display',serif; font-size:32px; color:var(--accent); font-weight:900; text-align:center; margin-bottom:8px; }
+  .sos-status-text { font-size:14px; color:#64748B; text-align:center; margin-bottom:32px; }
+  .sos-countdown { width:140px; height:140px; border-radius:50%; border:3px solid var(--accent); display:flex; align-items:center; justify-content:center; margin-bottom:32px; position:relative; }
+  .sos-countdown::before { content:''; position:absolute; inset:-6px; border-radius:50%; border:2px solid rgba(255,107,107,0.3); animation:spin 3s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .countdown-num { font-family:'Playfair Display',serif; font-size:56px; font-weight:900; color:var(--accent); }
+  .sent-card { background:rgba(8,145,178,0.06); border:1px solid rgba(8,145,178,0.2); border-radius:20px; padding:20px; width:100%; margin-bottom:20px; }
+  .sent-title { font-size:14px; color:var(--teal); font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .sent-contact { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); }
+  .sent-contact:last-child { border-bottom:none; }
+  .contact-avatar { width:32px; height:32px; border-radius:50%; background:var(--teal2); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .contact-info { flex:1; }
+  .contact-name { font-size:13px; color:#0F172A; font-weight:500; }
+  .contact-status { font-size:11px; color:var(--teal); }
+  .gps-card { background:rgba(217,119,6,0.06); border:1px solid rgba(217,119,6,0.2); border-radius:16px; padding:14px 16px; width:100%; margin-bottom:20px; }
+  .gps-label { font-size:11px; color:var(--gold); font-weight:600; letter-spacing:1px; margin-bottom:4px; }
+  .gps-coords { font-size:13px; color:#0F172A; font-family:monospace; }
+  .sos-actions { display:flex; gap:12px; width:100%; }
+  .btn-cancel { flex:1; padding:14px; border-radius:14px; background:rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.12); color:#334155; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  .btn-call { flex:1; padding:14px; border-radius:14px; background:var(--accent); border:none; color:var(--white); font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; display:flex; align-items:center; justify-content:center; gap:6px; }
+
+  /* ── ROUTE SCREEN ── */
+  #route { background:#F0F9FF; }
+  .screen-header { padding:60px 24px 20px; }
+  .screen-title { font-family:'Playfair Display',serif; font-size:26px; color:#0F172A; font-weight:700; }
+  .screen-sub { font-size:13px; color:var(--gray); margin-top:4px; }
+  .map-placeholder {
+    margin: 0 24px;
+    height: 200px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #0a2a1e 0%, #0d3525 50%, #082a1c 100%);
+    position:relative; overflow:hidden; border:1px solid rgba(0,168,150,0.2);
+  }
+  .map-grid { position:absolute; inset:0; opacity:0.15; background-image: linear-gradient(rgba(0,168,150,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,168,150,0.5) 1px, transparent 1px); background-size:30px 30px; }
+  .map-pin { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+  .map-pin-dot { width:16px; height:16px; border-radius:50%; background:var(--teal); box-shadow:0 0 20px var(--teal); margin:0 auto; }
+  .map-pin-ring { width:40px; height:40px; border-radius:50%; border:2px solid rgba(0,168,150,0.4); position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); animation:mapPulse 2s ease-out infinite; }
+  .map-pin-ring2 { width:64px; height:64px; border-radius:50%; border:1px solid rgba(0,168,150,0.2); position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); animation:mapPulse 2s ease-out infinite 0.5s; }
+  @keyframes mapPulse { 0%{transform:translate(-50%,-50%) scale(0.8);opacity:1} 100%{transform:translate(-50%,-50%) scale(2);opacity:0} }
+  .map-route-safe { position:absolute; top:30%; left:15%; right:15%; height:3px; background:linear-gradient(90deg, var(--teal), var(--teal-light)); border-radius:2px; }
+  .map-badge { position:absolute; top:12px; left:12px; background:rgba(0,168,150,0.9); border-radius:20px; padding:4px 12px; font-size:11px; color:#fff; font-weight:600; }
+  .map-badge2 { position:absolute; top:12px; right:12px; background:rgba(255,107,107,0.9); border-radius:20px; padding:4px 12px; font-size:11px; color:#fff; font-weight:600; }
+
+  .route-options { padding:16px 24px; display:flex; flex-direction:column; gap:12px; margin-bottom:90px; }
+  .route-option { background:var(--white); border-radius:18px; padding:16px 18px; border:1px solid rgba(0,0,0,0.08); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+  .route-option.safe { border-color:rgba(8,145,178,0.3); background:#F0FDFA; }
+  .route-option.danger { border-color:rgba(239,68,68,0.3); background:#FFF5F5; opacity:0.85; }
+  .ro-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .ro-name { font-size:15px; font-weight:600; color:#0F172A; }
+  .ro-badge { border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; }
+  .ro-badge.safe { background:rgba(8,145,178,0.15); color:var(--teal); }
+  .ro-badge.danger { background:rgba(239,68,68,0.15); color:var(--accent); }
+  .ro-details { display:flex; gap:16px; }
+  .ro-detail { font-size:12px; color:var(--gray); }
+  .ro-detail strong { color:#334155; }
+  .crowd-card { margin:0 24px 16px; background:var(--white); border-radius:16px; padding:14px 16px; border:1px solid rgba(217,119,6,0.2); display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+  .crowd-icon { font-size:24px; }
+  .crowd-text { flex:1; }
+  .crowd-label { font-size:11px; color:var(--gold); font-weight:600; }
+  .crowd-val { font-size:14px; color:#0F172A; font-weight:600; margin-top:2px; }
+  .crowd-bar { height:4px; background:rgba(0,0,0,0.08); border-radius:2px; margin-top:6px; }
+  .crowd-fill { height:4px; width:55%; background:var(--gold); border-radius:2px; }
+
+  /* ── JOURNEY SCREEN ── */
+  #journey { background:#F0F9FF; }
+  .journey-card { margin:16px 24px 0; background:var(--white); border-radius:20px; padding:20px; border:1px solid rgba(8,145,178,0.15); box-shadow:0 2px 12px rgba(8,145,178,0.08); }
+  .journey-route { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .j-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .j-dot.start { background:var(--teal); box-shadow:0 0 8px var(--teal); }
+  .j-dot.end { background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .j-line { width:2px; flex:1; background:linear-gradient(var(--teal),var(--accent)); margin:0 auto; min-height:30px; }
+  .j-stops { flex:1; display:flex; flex-direction:column; gap:24px; }
+  .j-stop-name { font-size:15px; font-weight:600; color:var(--white); }
+  .j-stop-sub { font-size:12px; color:var(--gray); margin-top:2px; }
+  .eta-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:rgba(0,168,150,0.08); border-radius:12px; margin-top:4px; border:1px solid rgba(0,168,150,0.15); }
+  .eta-label { font-size:12px; color:var(--gray); }
+  .eta-val { font-family:'Playfair Display',serif; font-size:28px; color:var(--teal); font-weight:700; }
+  .eta-unit { font-size:12px; color:var(--gray); }
+
+  .sharing-card { margin:12px 24px 0; background:var(--card); border-radius:18px; padding:16px; border:1px solid rgba(255,255,255,0.06); }
+  .sharing-title { font-size:12px; color:var(--gray); font-weight:500; letter-spacing:0.5px; margin-bottom:10px; text-transform:uppercase; }
+  .sharing-person { display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .sp-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--teal2), var(--teal)); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .sp-name { font-size:13px; color:var(--white); font-weight:500; }
+  .sp-status { font-size:11px; color:var(--teal); }
+  .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--teal); margin-right:4px; animation:blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .auto-alert-card { margin:12px 24px 0; background:rgba(245,166,35,0.08); border-radius:16px; padding:14px 16px; border:1px solid rgba(245,166,35,0.2); display:flex; align-items:center; gap:12px; }
+  .aa-icon { font-size:22px; }
+  .aa-text { font-size:12px; color:var(--gold); line-height:1.5; }
+  .aa-text strong { font-size:14px; display:block; margin-bottom:2px; }
+
+  .safe-btn { margin:16px 24px 90px; width:calc(100% - 48px); padding:18px; border-radius:18px; background:linear-gradient(135deg, var(--teal2), var(--teal)); border:none; color:var(--white); font-size:16px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 32px rgba(0,168,150,0.3); transition:all 0.2s; }
+  .safe-btn:active { transform:scale(0.98); }
+
+  /* ── REPORT SCREEN ── */
+  #report { background:#F0F9FF; }
+  .form-section { padding:0 24px 90px; }
+  .anon-badge { background:rgba(0,168,150,0.1); border:1px solid rgba(0,168,150,0.2); border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:8px; margin-bottom:20px; }
+  .anon-badge span { font-size:13px; color:var(--teal); font-weight:500; }
+  .form-group { margin-bottom:16px; }
+  .form-label { font-size:12px; color:var(--gray); font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px; display:block; }
+  .form-select, .form-textarea {
+    width:100%; background:var(--white); border:1px solid rgba(0,0,0,0.12); border-radius:14px; padding:14px 16px;
+    color:#0F172A; font-size:14px; font-family:'DM Sans',sans-serif; outline:none;
+    transition:border-color 0.2s; appearance:none;
+  }
+  .form-select:focus, .form-textarea:focus { border-color:var(--teal); }
+  .form-textarea { min-height:90px; resize:none; }
+  .location-field { background:var(--white); border:1px solid rgba(8,145,178,0.2); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:8px; }
+  .location-field span { font-size:14px; color:#334155; }
+  .submit-btn { width:100%; padding:16px; border-radius:16px; background:linear-gradient(135deg, var(--teal2), var(--teal)); border:none; color:var(--white); font-size:15px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:8px; box-shadow:0 8px 24px rgba(0,168,150,0.25); transition:all 0.2s; }
+  .submit-btn:active { transform:scale(0.98); }
+  .privacy-note { text-align:center; font-size:12px; color:var(--gray); margin-top:12px; }
+  .privacy-note strong { color:var(--teal); }
+
+  /* ── DASHBOARD SCREEN ── */
+  #dashboard { background:#F0F9FF; }
+  .dash-stats { padding:8px 24px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .stat-card { background:var(--white); border-radius:16px; padding:14px 12px; border:1px solid rgba(0,0,0,0.07); text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+  .stat-num { font-family:'Playfair Display',serif; font-size:26px; font-weight:700; }
+  .stat-num.red { color:var(--accent); }
+  .stat-num.gold { color:var(--gold); }
+  .stat-num.teal { color:var(--teal); }
+  .stat-label { font-size:10px; color:var(--gray); margin-top:4px; line-height:1.3; }
+  .section-title { font-size:13px; color:var(--gray); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; padding:16px 24px 8px; }
+  .heatmap-list { padding:0 24px; display:flex; flex-direction:column; gap:8px; }
+  .heat-item { background:var(--white); border-radius:14px; padding:12px 14px; display:flex; align-items:center; gap:12px; border:1px solid rgba(0,0,0,0.07); box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+  .heat-bar-bg { flex:1; height:6px; background:rgba(0,0,0,0.08); border-radius:3px; }
+  .heat-bar { height:6px; border-radius:3px; }
+  .heat-name { font-size:13px; color:#0F172A; font-weight:500; min-width:130px; }
+  .heat-count { font-size:12px; font-weight:700; min-width:24px; text-align:right; }
+  .incidents-table { margin:8px 24px 90px; background:var(--white); border-radius:18px; overflow:hidden; border:1px solid rgba(0,0,0,0.07); box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+  .table-header { display:grid; grid-template-columns:60px 1fr 1fr 70px; padding:10px 14px; background:rgba(8,145,178,0.08); }
+  .th { font-size:11px; color:var(--teal); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+  .table-row { display:grid; grid-template-columns:60px 1fr 1fr 70px; padding:10px 14px; border-top:1px solid rgba(0,0,0,0.05); }
+  .td { font-size:12px; color:#334155; }
+  .td.badge { display:inline-flex; align-items:center; }
+  .status-pill { padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; }
+  .status-pill.active { background:rgba(239,68,68,0.12); color:var(--accent); }
+  .status-pill.resolved { background:rgba(8,145,178,0.12); color:var(--teal); }
+
+  /* SUCCESS TOAST */
+  .toast { position:absolute; top:60px; left:24px; right:24px; background:var(--teal); border-radius:14px; padding:14px 16px; z-index:200; display:flex; align-items:center; gap:10px; transform:translateY(-100px); opacity:0; transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast-text { font-size:14px; color:var(--white); font-weight:600; }
+
+  /* CALCULATOR DISGUISE — keep dark for realism */
+  #calculator { background:#1a1a1a; }
+  .calc-display { background:#0a0a0a; margin:60px 20px 16px; border-radius:16px; padding:20px 24px; text-align:right; }
+  .calc-expr { font-size:16px; color:#666; font-family:monospace; min-height:24px; }
+  .calc-result { font-size:48px; color:#fff; font-family:monospace; font-weight:300; margin-top:4px; }
+  .calc-grid { padding:0 20px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:90px; }
+  .calc-key { height:70px; border-radius:16px; border:none; font-size:22px; font-weight:400; cursor:pointer; font-family:monospace; transition:all 0.1s; }
+  .calc-key:active { transform:scale(0.93); }
+  .calc-key.op { background:#2a2a2a; color:#FF9500; }
+  .calc-key.num { background:#333; color:#fff; }
+  .calc-key.zero { grid-column:span 2; border-radius:16px; }
+  .calc-key.eq { background:#FF9500; color:#fff; }
+  .calc-key.func { background:#1c1c1e; color:#fff; }
+  .calc-sos-hint { text-align:center; font-size:11px; color:#555; padding-bottom:8px; }
+
+  /* PROFILE */
+  #profile { background:#F0F9FF; }
+  .profile-hero { padding:60px 24px 24px; display:flex; align-items:center; gap:16px; }
+  .profile-avatar { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--teal2), var(--teal)); display:flex; align-items:center; justify-content:center; font-size:28px; border:2px solid rgba(8,145,178,0.3); }
+  .profile-name { font-family:'Playfair Display',serif; font-size:22px; color:#0F172A; font-weight:700; }
+  .profile-tag { font-size:13px; color:var(--teal); margin-top:2px; }
+  .profile-section { margin:0 24px 16px; }
+  .ps-title { font-size:12px; color:var(--gray); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:10px; }
+  .ps-item { background:var(--white); border-radius:14px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; cursor:pointer; border:1px solid rgba(0,0,0,0.07); box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+  .ps-item-left { display:flex; align-items:center; gap:12px; }
+  .ps-item-icon { font-size:18px; }
+  .ps-item-name { font-size:14px; color:#0F172A; font-weight:500; }
+  .ps-item-sub { font-size:12px; color:var(--gray); margin-top:2px; }
+  .ps-item-arrow { color:var(--gray); font-size:16px; }
+  .disguise-btn { margin:0 24px 90px; padding:14px; border-radius:14px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); color:var(--accent); font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; width:calc(100%-48px); display:block; text-align:center; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>●●●●  WiFi  🔋</span>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast">
+    <span>✅</span>
+    <span class="toast-text" id="toastText">Report submitted anonymously!</span>
+  </div>
+
+  <!-- ══ SCREEN: HOME ══ -->
+  <div class="screen active" id="home">
+    <div class="home-header">
+      <div class="home-greeting">GOOD EVENING</div>
+      <div class="home-name">Priya 👋</div>
+    </div>
+    <div class="home-route-card">
+      <div class="route-dot"></div>
+      <div class="route-info">
+        <div class="route-label">CURRENT ROUTE</div>
+        <div class="route-text">Bus 47B · Majestic → Whitefield</div>
+      </div>
+      <div class="route-badge">LIVE</div>
+    </div>
+    <div class="sos-container">
+      <div class="sos-ring3"><div class="sos-ring2"><div class="sos-ring1">
+        <button class="sos-btn" onclick="triggerSOS()">
+          <span class="sos-label">SOS</span>
+          <span class="sos-sub">HOLD TO ACTIVATE</span>
+        </button>
+      </div></div></div>
+      <div class="sos-hint">Tap for immediate emergency alert</div>
+    </div>
+    <div class="quick-actions">
+      <div class="qa-card" onclick="goTo('route')">
+        <div class="qa-icon">🗺️</div>
+        <div class="qa-title">Safe Route</div>
+        <div class="qa-sub">View safe path</div>
+      </div>
+      <div class="qa-card" onclick="goTo('journey')">
+        <div class="qa-icon">📲</div>
+        <div class="qa-title">Journey Track</div>
+        <div class="qa-sub">Share location</div>
+      </div>
+      <div class="qa-card" onclick="goTo('report')">
+        <div class="qa-icon">📋</div>
+        <div class="qa-title">Report</div>
+        <div class="qa-sub">Anonymous report</div>
+      </div>
+      <div class="qa-card" onclick="goTo('dashboard')">
+        <div class="qa-icon">📊</div>
+        <div class="qa-title">Dashboard</div>
+        <div class="qa-sub">Authority view</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: SOS ══ -->
+  <div class="screen" id="sos-screen">
+    <div class="sos-activated">🚨 SOS Activated</div>
+    <div class="sos-status-text" id="sos-status-text">Sending alert in...</div>
+    <div class="sos-countdown">
+      <span class="countdown-num" id="countdown-num">5</span>
+    </div>
+    <div class="sent-card" id="sent-card" style="display:none">
+      <div class="sent-title">✅ Alerts Sent Successfully</div>
+      <div class="sent-contact">
+        <div class="contact-avatar">👩</div>
+        <div class="contact-info">
+          <div class="contact-name">Mom</div>
+          <div class="contact-status">📍 Location shared · Notified</div>
+        </div>
+      </div>
+      <div class="sent-contact">
+        <div class="contact-avatar">👧</div>
+        <div class="contact-info">
+          <div class="contact-name">Sister</div>
+          <div class="contact-status">📍 Location shared · Notified</div>
+        </div>
+      </div>
+      <div class="sent-contact">
+        <div class="contact-avatar">👮</div>
+        <div class="contact-info">
+          <div class="contact-name">Bengaluru Police Control Room</div>
+          <div class="contact-status">🚔 Dispatch ticket created</div>
+        </div>
+      </div>
+    </div>
+    <div class="gps-card">
+      <div class="gps-label">📍 YOUR LIVE LOCATION</div>
+      <div class="gps-coords">12.9716° N, 77.5946° E<br/>Bus 47B · Near MG Road</div>
+    </div>
+    <div class="sos-actions">
+      <button class="btn-cancel" onclick="goTo('home')">✕ Cancel SOS</button>
+      <button class="btn-call">📞 Call 112</button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: ROUTE ══ -->
+  <div class="screen" id="route">
+    <div class="screen-header">
+      <div class="screen-title">Safe Route</div>
+      <div class="screen-sub">Majestic → Whitefield</div>
+    </div>
+    <div class="map-placeholder">
+      <div class="map-grid"></div>
+      <div class="map-route-safe"></div>
+      <div class="map-pin">
+        <div class="map-pin-ring2"></div>
+        <div class="map-pin-ring"></div>
+        <div class="map-pin-dot"></div>
+      </div>
+      <div class="map-badge">✅ Safe Route</div>
+      <div class="map-badge2">⚠️ Avoid</div>
+    </div>
+    <div class="crowd-card">
+      <div class="crowd-icon">🚌</div>
+      <div class="crowd-text">
+        <div class="crowd-label">CROWD DENSITY · BUS 47B</div>
+        <div class="crowd-val">Moderate — 55% capacity</div>
+        <div class="crowd-bar"><div class="crowd-fill"></div></div>
+      </div>
+    </div>
+    <div class="route-options">
+      <div class="route-option safe">
+        <div class="ro-header">
+          <div class="ro-name">🟢 Via MG Road (Recommended)</div>
+          <div class="ro-badge safe">SAFE</div>
+        </div>
+        <div class="ro-details">
+          <div class="ro-detail"><strong>42 min</strong> · ETA 10:23 PM</div>
+          <div class="ro-detail"><strong>0</strong> incidents reported</div>
+          <div class="ro-detail">Well lit ✓</div>
+        </div>
+      </div>
+      <div class="route-option danger">
+        <div class="ro-header">
+          <div class="ro-name">🔴 Via Old Airport Road</div>
+          <div class="ro-badge danger">AVOID</div>
+        </div>
+        <div class="ro-details">
+          <div class="ro-detail"><strong>35 min</strong> · ETA 10:16 PM</div>
+          <div class="ro-detail"><strong>4</strong> incidents reported</div>
+          <div class="ro-detail">Poor lighting ✗</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: JOURNEY ══ -->
+  <div class="screen" id="journey">
+    <div class="screen-header">
+      <div class="screen-title">Journey Tracker</div>
+      <div class="screen-sub">Live tracking active</div>
+    </div>
+    <div class="journey-card">
+      <div class="journey-route">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="j-dot start"></div>
+          <div class="j-line"></div>
+          <div class="j-dot end"></div>
+        </div>
+        <div class="j-stops">
+          <div>
+            <div class="j-stop-name">Majestic Bus Stand</div>
+            <div class="j-stop-sub">Departed 9:41 PM</div>
+          </div>
+          <div>
+            <div class="j-stop-name">Whitefield</div>
+            <div class="j-stop-sub">Expected 10:23 PM</div>
+          </div>
+        </div>
+      </div>
+      <div class="eta-row">
+        <div>
+          <div class="eta-label">ESTIMATED ARRIVAL</div>
+          <div class="eta-unit">10:23 PM tonight</div>
+        </div>
+        <div style="text-align:right">
+          <div class="eta-val">42</div>
+          <div class="eta-unit">minutes</div>
+        </div>
+      </div>
+    </div>
+    <div class="sharing-card">
+      <div class="sharing-title"><span class="live-dot"></span>Sharing with</div>
+      <div class="sharing-person">
+        <div class="sp-avatar">👩</div>
+        <div>
+          <div class="sp-name">Mom</div>
+          <div class="sp-status">Viewing your location live</div>
+        </div>
+      </div>
+      <div class="sharing-person">
+        <div class="sp-avatar">👧</div>
+        <div>
+          <div class="sp-name">Sister</div>
+          <div class="sp-status">Viewing your location live</div>
+        </div>
+      </div>
+    </div>
+    <div class="auto-alert-card">
+      <div class="aa-icon">⏱️</div>
+      <div class="aa-text">
+        <strong>Auto-Alert Armed</strong>
+        If you don't confirm arrival by 10:25 PM, an alert fires automatically to your contacts + police.
+      </div>
+    </div>
+    <button class="safe-btn" onclick="showToast('✅ Arrival confirmed! Contacts notified.')">
+      ✅ I Arrived Safely
+    </button>
+  </div>
+
+  <!-- ══ SCREEN: REPORT ══ -->
+  <div class="screen" id="report">
+    <div class="screen-header">
+      <div class="screen-title">Report Incident</div>
+      <div class="screen-sub">Your identity is fully protected</div>
+    </div>
+    <div class="form-section">
+      <div class="anon-badge">
+        <span>🔒</span>
+        <span>Anonymous report — your identity will never be revealed</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bus Number</label>
+        <select class="form-select">
+          <option>Bus 47B — Majestic → Whitefield</option>
+          <option>Bus 500C — KR Puram</option>
+          <option>Bus 201 — Banashankari</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type of Incident</label>
+        <select class="form-select">
+          <option>Select incident type</option>
+          <option>Harassment / Molestation</option>
+          <option>Unsafe Driver Behaviour</option>
+          <option>Overcrowding</option>
+          <option>Poor / No Lighting</option>
+          <option>Suspicious Person</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <div class="location-field">
+          <span>📍</span>
+          <span>Near MG Road, Bengaluru (auto-detected)</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description (Optional)</label>
+        <textarea class="form-textarea" placeholder="Describe what happened..."></textarea>
+      </div>
+      <button class="submit-btn" onclick="showToast('Report submitted anonymously!')">Submit Report</button>
+      <div class="privacy-note">🔒 <strong>Zero data linked to you.</strong> Report goes directly to transport authorities.</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: DASHBOARD ══ -->
+  <div class="screen" id="dashboard">
+    <div class="screen-header">
+      <div class="screen-title">Authority Dashboard</div>
+      <div class="screen-sub">Bengaluru Transport Control</div>
+    </div>
+    <div class="dash-stats">
+      <div class="stat-card">
+        <div class="stat-num red">14</div>
+        <div class="stat-label">Incidents Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num gold">3</div>
+        <div class="stat-label">Active SOS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num teal">47B</div>
+        <div class="stat-label">Flagged Bus</div>
+      </div>
+    </div>
+    <div class="section-title">Incident Heatmap</div>
+    <div class="heatmap-list">
+      <div class="heat-item">
+        <div class="heat-name">Old Airport Road</div>
+        <div class="heat-bar-bg"><div class="heat-bar" style="width:85%;background:var(--accent)"></div></div>
+        <div class="heat-count" style="color:var(--accent)">8</div>
+      </div>
+      <div class="heat-item">
+        <div class="heat-name">Shivajinagar Stop</div>
+        <div class="heat-bar-bg"><div class="heat-bar" style="width:55%;background:var(--gold)"></div></div>
+        <div class="heat-count" style="color:var(--gold)">5</div>
+      </div>
+      <div class="heat-item">
+        <div class="heat-name">KR Puram Terminal</div>
+        <div class="heat-bar-bg"><div class="heat-bar" style="width:30%;background:var(--teal)"></div></div>
+        <div class="heat-count" style="color:var(--teal)">3</div>
+      </div>
+    </div>
+    <div class="section-title">Recent Incidents</div>
+    <div class="incidents-table">
+      <div class="table-header">
+        <div class="th">Time</div>
+        <div class="th">Bus</div>
+        <div class="th">Type</div>
+        <div class="th">Status</div>
+      </div>
+      <div class="table-row">
+        <div class="td">9:38 PM</div>
+        <div class="td">47B</div>
+        <div class="td">Harassment</div>
+        <div class="td"><span class="status-pill active">Active</span></div>
+      </div>
+      <div class="table-row">
+        <div class="td">9:21 PM</div>
+        <div class="td">500C</div>
+        <div class="td">Overcrowding</div>
+        <div class="td"><span class="status-pill resolved">Resolved</span></div>
+      </div>
+      <div class="table-row">
+        <div class="td">8:55 PM</div>
+        <div class="td">201</div>
+        <div class="td">Poor Lighting</div>
+        <div class="td"><span class="status-pill resolved">Resolved</span></div>
+      </div>
+      <div class="table-row">
+        <div class="td">8:30 PM</div>
+        <div class="td">47B</div>
+        <div class="td">SOS Alert</div>
+        <div class="td"><span class="status-pill active">Active</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: CALCULATOR (Disguise) ══ -->
+  <div class="screen" id="calculator">
+    <div class="calc-display">
+      <div class="calc-expr" id="calc-expr"></div>
+      <div class="calc-result" id="calc-result">0</div>
+    </div>
+    <div class="calc-sos-hint">Try: 5 + 5 + SOS (type 5+5+) then press =</div>
+    <div class="calc-grid">
+      <button class="calc-key func" onclick="calcPress('AC')">AC</button>
+      <button class="calc-key func" onclick="calcPress('+/-')">+/-</button>
+      <button class="calc-key func" onclick="calcPress('%')">%</button>
+      <button class="calc-key op" onclick="calcPress('÷')">÷</button>
+      <button class="calc-key num" onclick="calcPress('7')">7</button>
+      <button class="calc-key num" onclick="calcPress('8')">8</button>
+      <button class="calc-key num" onclick="calcPress('9')">9</button>
+      <button class="calc-key op" onclick="calcPress('×')">×</button>
+      <button class="calc-key num" onclick="calcPress('4')">4</button>
+      <button class="calc-key num" onclick="calcPress('5')">5</button>
+      <button class="calc-key num" onclick="calcPress('6')">6</button>
+      <button class="calc-key op" onclick="calcPress('-')">−</button>
+      <button class="calc-key num" onclick="calcPress('1')">1</button>
+      <button class="calc-key num" onclick="calcPress('2')">2</button>
+      <button class="calc-key num" onclick="calcPress('3')">3</button>
+      <button class="calc-key op" onclick="calcPress('+')">+</button>
+      <button class="calc-key num zero" onclick="calcPress('0')">0</button>
+      <button class="calc-key num" onclick="calcPress('.')">.</button>
+      <button class="calc-key eq" onclick="calcPress('=')">=</button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: PROFILE ══ -->
+  <div class="screen" id="profile">
+    <div class="profile-hero">
+      <div class="profile-avatar">👩</div>
+      <div>
+        <div class="profile-name">Priya Sharma</div>
+        <div class="profile-tag">SafeTransit User · Bengaluru</div>
+      </div>
+    </div>
+    <div class="profile-section">
+      <div class="ps-title">Emergency Contacts</div>
+      <div class="ps-item">
+        <div class="ps-item-left">
+          <div class="ps-item-icon">👩</div>
+          <div><div class="ps-item-name">Mom</div><div class="ps-item-sub">+91 98XXX XXXXX</div></div>
+        </div>
+        <div class="ps-item-arrow">›</div>
+      </div>
+      <div class="ps-item">
+        <div class="ps-item-left">
+          <div class="ps-item-icon">👧</div>
+          <div><div class="ps-item-name">Sister</div><div class="ps-item-sub">+91 97XXX XXXXX</div></div>
+        </div>
+        <div class="ps-item-arrow">›</div>
+      </div>
+    </div>
+    <div class="profile-section">
+      <div class="ps-title">Features</div>
+      <div class="ps-item" onclick="goTo('calculator')">
+        <div class="ps-item-left">
+          <div class="ps-item-icon">🎭</div>
+          <div><div class="ps-item-name">Disguised SOS</div><div class="ps-item-sub">Tap to open calculator skin</div></div>
+        </div>
+        <div class="ps-item-arrow">›</div>
+      </div>
+      <div class="ps-item">
+        <div class="ps-item-left">
+          <div class="ps-item-icon">🛰️</div>
+          <div><div class="ps-item-name">Mesh Network SOS</div><div class="ps-item-sub">BLE offline alerts · Active</div></div>
+        </div>
+        <div class="ps-item-arrow">›</div>
+      </div>
+      <div class="ps-item">
+        <div class="ps-item-left">
+          <div class="ps-item-icon">🔋</div>
+          <div><div class="ps-item-name">Low Battery Mode</div><div class="ps-item-sub">Triggers below 10% · On</div></div>
+        </div>
+        <div class="ps-item-arrow">›</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BOTTOM NAV ══ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--teal)"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" id="nav-route" onclick="goTo('route')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Route</span>
+    </button>
+    <button class="nav-btn" id="nav-report" onclick="goTo('report')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>Report</span>
+    </button>
+    <button class="nav-btn" id="nav-dashboard" onclick="goTo('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray)"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-btn" id="nav-profile" onclick="goTo('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray)"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+  const navScreens = ['home','route','report','dashboard','profile'];
+  let currentScreen = 'home';
+  let sosTimer = null;
+
+  function goTo(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('active'); b.querySelector('svg').style.color='var(--gray)'; b.querySelector('span').style.color='var(--gray)'; });
+    const navBtn = document.getElementById('nav-' + id);
+    if (navBtn) { navBtn.classList.add('active'); navBtn.querySelector('svg').style.color='var(--teal)'; navBtn.querySelector('span').style.color='var(--teal)'; }
+    currentScreen = id;
+  }
+
+  function triggerSOS() {
+    goTo('sos-screen');
+    document.getElementById('sent-card').style.display = 'none';
+    document.getElementById('sos-status-text').textContent = 'Sending alert in...';
+    let count = 5;
+    document.getElementById('countdown-num').textContent = count;
+    if (sosTimer) clearInterval(sosTimer);
+    sosTimer = setInterval(() => {
+      count--;
+      if (count <= 0) {
+        clearInterval(sosTimer);
+        document.getElementById('countdown-num').textContent = '✓';
+        document.getElementById('sos-status-text').textContent = 'Alert sent successfully!';
+        document.getElementById('sent-card').style.display = 'block';
+      } else {
+        document.getElementById('countdown-num').textContent = count;
+      }
+    }, 1000);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastText').textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Calculator logic
+  let calcExpr = '';
+  let calcVal = '0';
+  let sosSequence = '';
+
+  function calcPress(key) {
+    if (key === 'AC') { calcExpr = ''; calcVal = '0'; sosSequence = ''; }
+    else if (key === '=') {
+      // Check for SOS sequence: expression contains 5+5+
+      if (calcExpr.includes('5+5+') || calcExpr === '5+5+') {
+        setTimeout(() => { triggerSOS(); goTo('sos-screen'); }, 400);
+        calcVal = 'SOS!';
+      } else {
+        try {
+          const expr = calcExpr.replace('×','*').replace('÷','/');
+          calcVal = String(eval(expr));
+        } catch { calcVal = 'Error'; }
+      }
+      calcExpr = '';
+    } else if (['+','-','×','÷'].includes(key)) {
+      calcExpr += key; calcVal = key;
+    } else {
+      calcExpr += key; calcVal = key;
+    }
+    document.getElementById('calc-expr').textContent = calcExpr;
+    document.getElementById('calc-result').textContent = calcVal;
+  }
+</script>
+</body>
+</html>
